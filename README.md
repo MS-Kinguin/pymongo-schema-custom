@@ -21,6 +21,15 @@ This tools is inspired by [variety](https://github.com/variety/variety), with th
 [![Build Status](https://travis-ci.org/pajachiet/pymongo-schema.svg?branch=master)](https://travis-ci.org/pajachiet/pymongo-schema)
 [![Coverage Status](https://coveralls.io/repos/github/pajachiet/pymongo-schema/badge.svg?branch=master)](https://coveralls.io/github/pajachiet/pymongo-schema?branch=master)
 
+# Modifications
+
+- Added date filtering functionality to the `extract` subcommand, allowing users to filter documents based on a specified date field and start date.
+- Enhanced output formatting for the `md` format to include the generation date and query date information.
+- Enhanced extraction example:
+- 
+```shell
+python3 -m pymongo_schema extract --host "host" --port 27017 --user "user" --password "password" -d "DB" -c "COLL" --format md --date_field "date_field" --start_date "timestamp"
+```
 
 # Install
 
