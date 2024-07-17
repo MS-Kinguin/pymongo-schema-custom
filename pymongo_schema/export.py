@@ -35,7 +35,7 @@ import sys
 from contextlib import contextmanager
 from functools import partial
 from numbers import Number
-
+from datetime import datetime
 import yaml
 import jinja2
 from bson import json_util
@@ -568,6 +568,11 @@ class MdOutput(ListOutput):
         'schema': ['Field_compact_name', 'Field_name', 'Count',
                    'Percentage', 'Types_count']}
 
+    def __init__(self, data, category='schema', columns_to_get=None, without_counts=False, **kwargs):
+        super().__init__(data, category=category, columns_to_get=columns_to_get)
+        self.date_filter = kwargs.get('date_filter')
+        self.date_field = kwargs.get('date_field')
+
     def opener(self):
         """Use codecs module open function to support non ascii characters."""
         return partial(codecs.open, mode='w', encoding="utf-8")
@@ -576,6 +581,15 @@ class MdOutput(ListOutput):
         """
         Format data from self.data_df, write into file_descr (opened with opener).
         """
+        date_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        file_descr.write(f"Generated on: {date_str}\n\n")
+
+        # Write the query date
+        if self.date_field and self.date_filter:
+            file_descr.write(f"Query date: {self.date_field}: {{'$gte': '{self.date_filter}'}}\n\n")
+        else:
+            file_descr.write("Query date: Not provided\n\n")
+
         columns = list(self.data_df.columns)
         col0 = columns.pop(0)       # First column title (usually Database)
         col1 = columns.pop(0)       # Second column title (usually Collection or Table)
@@ -612,6 +626,7 @@ class MdOutput(ListOutput):
 
     def _make_line(self, values):
         return u'|{}|'.format('|'.join(values))
+
 
 
 class XlsxOutput(ListOutput):
@@ -673,6 +688,8 @@ def transform_data_to_file(data, formats, output=None, category='schema', **kwar
     :param kwargs: may contain additional specific arguments
            columns: list of columns to display in the output for list like formats
            without_counts: bool to display count fields in output for hierarchical formats
+           date_field: str, date field used for filtering
+           date_filter: str, date filter used for filtering
     """
     wrong_formats = set(formats) - {'tsv', 'xlsx', 'json', 'yaml', 'html', 'md'}
 
@@ -681,8 +698,12 @@ def transform_data_to_file(data, formats, output=None, category='schema', **kwar
                          "{} is/are not supported".format(wrong_formats))
 
     for output_format in formats:
+        if output_format == 'json':
+            date_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            data['scan_date'] = date_str
         output_maker = rec_find_right_subclass(output_format)(
             data, category=category,
-            columns_to_get=kwargs.get('columns'), without_counts=kwargs.get('without_counts'))
+            columns_to_get=kwargs.get('columns'), without_counts=kwargs.get('without_counts'),
+            date_field=kwargs.get('date_field'), date_filter=kwargs.get('date_filter'))
         with output_maker.open(output) as file_descr:
             output_maker.write_data(file_descr)

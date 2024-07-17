@@ -14,6 +14,7 @@ from argparse import ArgumentParser
 from time import time
 
 import pymongo
+import datetime
 
 from pymongo_schema.compare import compare_schemas_bases
 from pymongo_schema.export import transform_data_to_file, HtmlOutput, TsvOutput
@@ -45,6 +46,8 @@ def add_subparser_extract(subparsers, parent_parsers):
                            help='User to connect to MongoDB [default: None]')
     subparser.add_argument('--password', default=None,
                            help='Password to connect to MongoDB [default: None]')
+    subparser.add_argument('--date_field', type=str, default=None, help='Date field for filtering')
+    subparser.add_argument('--start_date', type=str, default=None, help='Start date for filtering (ISO format)')
 
 
 def add_subparser_transform(subparsers, parent_parsers):
@@ -135,6 +138,8 @@ def main(argv=None):
     # Extract mongo schema
     if args.command == 'extract':
         output_dict = extract_schema(args)
+        args.date_filter = args.start_date
+        args.date_field = args.date_field
 
     # Transform mongo schema
     if args.command == 'transform':
@@ -178,15 +183,25 @@ def extract_schema(args):
     """ Main entry point function to extract schema."""
     start_time = time()
     logger.info('=== Start MongoDB schema analysis')
+
+    # Construct the MongoClient
     if args.password:
         client = pymongo.MongoClient(host=args.host, port=args.port, username=args.user, password=args.password)
     else:
         client = pymongo.MongoClient(host=args.host, port=args.port)
-    
+
+    # Construct date filter if provided
+    date_filter = None
+    if args.date_field and args.start_date:
+        start_date = datetime.datetime.fromisoformat(args.start_date)
+        date_filter = {args.date_field: {'$gte': start_date}}
+
+    # Extract schema with date filter if provided
     mongo_schema = extract_pymongo_client_schema(client,
                                                  database_names=args.databases,
                                                  collection_names=args.collections,
-                                                 sample_size=args.size)
+                                                 sample_size=args.size,
+                                                 date_filter=date_filter)
 
     logger.info('--- MongoDB schema analysis took %.2f s', time() - start_time)
     return mongo_schema

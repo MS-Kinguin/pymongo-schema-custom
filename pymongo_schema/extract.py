@@ -48,9 +48,9 @@ from past.builtins import basestring
 from pymongo_schema.mongo_sql_types import get_type_string, common_parent_type
 
 logger = logging.getLogger(__name__)
+import datetime
 
-
-def extract_pymongo_client_schema(pymongo_client, database_names=None, collection_names=None, sample_size=0):
+def extract_pymongo_client_schema(pymongo_client, database_names=None, collection_names=None, sample_size=0, date_filter=None):
     """ Extract the schema for every database in database_names
 
     :param pymongo_client: pymongo.mongo_client.MongoClient
@@ -74,14 +74,13 @@ def extract_pymongo_client_schema(pymongo_client, database_names=None, collectio
     for database in database_names:
         logger.info('Extract schema of database %s', database)
         pymongo_database = pymongo_client[database]
-        database_schema = extract_database_schema(pymongo_database, collection_names, sample_size)
+        database_schema = extract_database_schema(pymongo_database, collection_names, sample_size, date_filter)
         if database_schema:  # Do not add a schema if it is empty
             mongo_schema[database] = database_schema
-
     return mongo_schema
 
 
-def extract_database_schema(pymongo_database, collection_names=None, sample_size=0):
+def extract_database_schema(pymongo_database, collection_names=None, sample_size=0, date_filter=None):
     """ Extract the database schema, for every collection in collection_names
 
     :param pymongo_database: pymongo.database.Database
@@ -102,12 +101,12 @@ def extract_database_schema(pymongo_database, collection_names=None, sample_size
     for collection in collection_names:
         logger.info('...collection %s', collection)
         pymongo_collection = pymongo_database[collection]
-        database_schema[collection] = extract_collection_schema(pymongo_collection, sample_size)
+        database_schema[collection] = extract_collection_schema(pymongo_collection, sample_size, date_filter)
 
     return database_schema
 
 
-def extract_collection_schema(pymongo_collection, sample_size=0):
+def extract_collection_schema(pymongo_collection, sample_size=0, date_filter=None):
     """ Iterate through all document of a collection to create its schema
 
     - Init collection schema
@@ -125,10 +124,19 @@ def extract_collection_schema(pymongo_collection, sample_size=0):
 
     n = pymongo_collection.estimated_document_count()
     collection_schema['count'] = n
+
+    query = {}
+    if date_filter:
+        query.update(date_filter)
+
     if sample_size:
-        documents = pymongo_collection.aggregate([{'$sample': {'size': sample_size}}], allowDiskUse=True)
+        documents = pymongo_collection.aggregate([
+            {'$match': query},
+            {'$sample': {'size': sample_size}}
+        ], allowDiskUse=True)
     else:
-        documents = pymongo_collection.find({})
+        documents = pymongo_collection.find(query)
+
     scan_count = sample_size or n
     i = 0
     for document in documents:
