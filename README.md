@@ -33,15 +33,11 @@ python3 -m pymongo_schema extract --host "host" --port 27017 --user "user" --pas
 
 # Install
 
-You can install latest stable version PyPi :
+You can install modified pymongo-schema from github:
 ```shell
-pip install --upgrade pymongo-schema
+pip install --upgrade git+https://github.com/MS-Kinguin/pymongo-schema-custom.git
 ```
 
-Or directly from github : 
-```shell
-pip install --upgrade git+https://github.com/pajachiet/pymongo-schema
-```
 # Usage
 
 ## Command line
